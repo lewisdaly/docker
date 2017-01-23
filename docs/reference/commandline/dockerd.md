@@ -992,6 +992,10 @@ with user namespaces enabled or not. If the daemon is configured with user
 namespaces, the Security Options entry in the response will list "userns" as
 one of the enabled security features.
 
+>**Note**: Due to the need to segregate content in the Docker daemon’s local cache of layer data by the mappings provided, the daemon uses *separate local caches* for when user namespaces are "on" and "off". When running the docker daemon with `--userns-remap`, the root of your graph directory (/var/lib/docker by default) will have one additional level of indirection, correlating to the remapped root uid and gid. For example, if the remapping user provided to the `--userns-remap` flag has subordinate user and group ranges that begin with ID 10000, then the root of the graph directory for all images and containers running with that remap setting will reside in `/var/lib/docker/10000.10000`.
+>  
+>As docker has to change the file ownership for the user namespace remapping case to the uid/gid ranges found in the subordinate ID files, you must re-pull docker images and start new containers after starting the daemon with user namespaces enabled. The layers making up these images will then have the correct ownership of the remapped uid/gid range.
+
 ### Detailed information on `subuid`/`subgid` ranges
 
 Given potential advanced use of the subordinate ID ranges by power users, the
@@ -1014,6 +1018,8 @@ following algorithm to create the mapping ranges:
 1. The range segments found for the particular user will be sorted by *start ID* ascending.
 2. Map segments will be created from each range in increasing value with a length matching the length of each segment. Therefore the range segment with the lowest numeric starting value will be equal to the remapped root, and continue up through host uid/gid equal to the range segment length. As an example, if the lowest segment starts at ID 1000 and has a length of 100, then a map of 1000 -> 0 (the remapped root) up through 1100 -> 100 will be created from this segment. If the next segment starts at ID 10000, then the next map will start with mapping 10000 -> 101 up to the length of this second segment. This will continue until no more segments are found in the subordinate files for this user.
 3. If more than five range segments exist for a single user, only the first five will be utilized, matching the kernel's limitation of only five entries in `/proc/self/uid_map` and `proc/self/gid_map`.
+
+
 
 ### Disable user namespace for a container
 
